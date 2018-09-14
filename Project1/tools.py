@@ -114,3 +114,37 @@ def FrankeFunction(x,y):
     term3 = 0.5*np.exp(-(9*x-7)**2/4.0 - 0.25*((9*y-3)**2))
     term4 = -0.2*np.exp(-(9*x-4)**2 - (9*y-7)**2)
     return term1 + term2 + term3 + term4
+
+
+def basis_exp_2d(x, y, basis = 2, alt = 1):
+    
+    shapex = x.shape
+    #shapey = y.shape
+    
+    xx = np.zeros([shapex[0], basis])
+    yy = np.zeros([shapex[0], basis])
+    
+    for i in range(basis):
+        xx[:,i] = x[:,0]**[i+1]
+        yy[:,i] = y[:,0]**[i+1]
+        
+    if alt == 1:
+        
+        XX = np.zeros([shapex[0], basis**2])
+        
+        k = 0
+        for i in range(basis):
+            for j in range(basis):
+                
+                XX[:,k] = xx[:,i]*yy[:,j]
+                k = k + 1
+        
+        X = np.c_[xx,yy,XX]
+        
+        return X
+    if alt == 2:
+        X = np.c_[xx,yy]
+        
+        return X
+    else:
+        print('Fourth parameter should be 1 or 2')
