@@ -5,6 +5,10 @@ Created on Wed Sep 12 13:14:31 2018
 @author: tlgreiner
 """
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import matplotlib.pyplot as plt
 
 # R2 score
 def R2_metric(y ,y_):
@@ -55,7 +59,7 @@ def ord_least_square(x,y):
     beta = np.dot(Hat,y)
     y_   = np.dot(X,beta)
     
-    return y_
+    return y_, beta
 
 
 def ridge_least_square(x, y, lamb = 0.01):
@@ -80,7 +84,7 @@ def ridge_least_square(x, y, lamb = 0.01):
     beta = np.dot(Hat,y)
     y_   = np.dot(X,beta)
     
-    return y_
+    return y_, beta
 
 def least_square_w_basis_exp(x,y,basis=0):
     
@@ -106,7 +110,7 @@ def least_square_w_basis_exp(x,y,basis=0):
     beta = np.dot(Hat,y)
     y_   = np.dot(X,beta)
     
-    return y_
+    return y_, beta
 
 def FrankeFunction(x,y):
     term1 = 0.75*np.exp(-(0.25*(9*x-2)**2) - 0.25*((9*y-2)**2))
@@ -148,3 +152,27 @@ def basis_exp_2d(x, y, basis = 2, alt = 1):
         return X
     else:
         print('Fourth parameter should be 1 or 2')
+        
+def display_fig(z,x,y, save=False,name=None,title=None):
+    
+    fig = plt.figure()
+    ax  = fig.gca(projection='3d')
+    surf_pred = ax.plot_surface(x, y, z, cmap=cm.coolwarm,
+    linewidth=0, antialiased=False)
+    # Customize the z axis.
+    ax.set_zlim(-0.10, 1.40)
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    ax.set_xlabel('x-axis')
+    ax.set_ylabel('y-axis')
+    ax.set_zlabel('z-axis')
+    ax.set_title(title)
+    # Add a color bar which maps values to colors.
+    fig.colorbar(surf_pred, shrink=0.5, aspect=5)
+    
+    if save == True:
+       plt.savefig(name +'.png', dpi=600)
+       
+    if save == False:
+       plt.show()
+
