@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Sep 17 09:20:10 2018
+Spyder Editor
 
-@author: tlgreiner
+This is a temporary script file.
 """
-
 
 import numpy as np
 from random import random, seed
-from tools import ord_least_square, FrankeFunction, ridge_least_square, basis_exp_2d, display_fig
+from tools import ord_least_square, FrankeFunction, ridge_least_square, basis_exp_2d, display_fig, LegendObject, plot_mean_and_CI, Metrics_param, MSE_metric, R2_metric, k_fold_CV
 from sklearn import linear_model
 from sklearn.linear_model import Ridge, Lasso
+import matplotlib.pyplot as plt
+from matplotlib.colors import colorConverter as cc
 
 
 # Make data.
@@ -22,15 +23,16 @@ z = FrankeFunction(x, y)
 # Plot the surface.
 
 display_fig(z,x,y,save=False)
+#display_fig(z,x,y,save=True,name='',title='Franke function')
 
 '''
-a)
+a)###################################################################################################################################
 '''
 
 # 1. OLS with no basis expansions or xy correlations #####
 
-x = np.arange(0, 1, 0.05)
-y = np.arange(0, 1, 0.05)
+x    = np.arange(0, 1, 0.05)
+y    = np.arange(0, 1, 0.05)
 x, y = np.meshgrid(x,y)
 
 z = FrankeFunction(x, y)
@@ -43,84 +45,130 @@ xf1 = x.flatten().reshape(shapex[0]*shapex[1],1)
 yf1 = y.flatten().reshape(shapey[0]*shapey[1],1)
 Z   = z.flatten().reshape(shapex[0]*shapex[1],1)
 
-X = basis_exp_2d(xf1,yf1,basis=1,alt=2)
+X = basis_exp_2d(xf1,yf1,order=1)
 
 z_pred, beta = ord_least_square(X,Z)
 z_pred       = z_pred.reshape(z.shape)
 
 display_fig(z_pred,x,y,save=False)
+#display_fig(z_pred,x,y,save=True,name='',title='Predicted function')
 
 # 2. OLS and basis expansions with and without x,y correlations #####
 
 
-X = basis_exp_2d(xf1,yf1,basis=5,alt=1)
+X = basis_exp_2d(xf1,yf1,order=8)
 
 z_pred, beta = ord_least_square(X,Z)
 z_pred       = z_pred.reshape(z.shape)
 
 display_fig(z_pred,x,y,save=False)
 
+#display_fig(z_pred,x,y,save=True,name='',title='Predicted function')
+
 # 3. OLS and basis expansions with and without x,y correlations and added noise #####
+
 np.random.seed(1)
-Z_n = Z + 0.02*np.max(Z)*np.random.randn(shapez[0]*shapez[1],1)
+Z_n = Z + 0.1*np.max(Z)*np.random.randn(shapez[0]*shapez[1],1)
 
 display_fig(Z_n.reshape(shapez),x,y,save=False)
 
 z_pred_n, beta = ord_least_square(X,Z_n)
-z_pred_n       = z_pred.reshape(z.shape)
+z_pred_n       = z_pred_n.reshape(z.shape)
 
 display_fig(z_pred_n,x,y,save=False)
+#display_fig(z_pred_n,x,y,save=True,name='',title='Predicted function with noise')
+
+##########################################################################################################################################
+# 4. Computing the metrics of the predictions and model assessment
+X = basis_exp_2d(xf1,yf1,order=8)
+Z_n = Z + 0.1*np.max(Z)*np.random.randn(shapez[0]*shapez[1],1)
+Data_vector   = Z_n
+Pred_vector   = z_pred_n.reshape(Z_n.shape)
+shapeX        = X.shape
+Design_matrix = np.c_[np.ones([shapeX[0],1]), X]
 
 
+# Computing the variance and standard error of the estimated least squares parameters    
+VarBeta, StdBeta = Metrics_param(beta, Data_vector, Pred_vector, Design_matrix,compute_var=True)
 
-def bootstrap_resampling(data_vector, Design_matrix):
+# Computing the confidence intervals
+betalow  = beta - StdBeta
+betahigh = beta + StdBeta
+
+# Estimated Beta, Beta + Se and Beta - Se 
+fig = plt.figure(1, figsize=(7, 2.5))
+plot_mean_and_CI(beta.reshape(shapeX[1] + 1,), betahigh.reshape(shapeX[1] + 1,), betalow.reshape(shapeX[1] + 1,), color_mean='k', color_shading='k')
+
+bg = np.array([1, 1, 1]) 
+colors = ['black', 'blue', 'green']
+colors_faded = [(np.array(cc.to_rgb(color)) + bg) / 2.0 for color in colors]
+ 
+plt.legend([0], [r'$\hat \beta$$\pm$SE[$\hat \beta$]'],
+           handler_map={
+               0: LegendObject(colors[0], colors_faded[0])
+            })
+plt.xlabel(r'$\hat \beta_i$')
+plt.title('Confidence interval')
+plt.tight_layout()
+plt.grid()
+plt.show()
     
-    shaped  = data_vector.shape
-    shapeD  = Design_matrix.shape
-    n       = shaped[0]*shaped[1]
-    indexes = np.arange(n).reshape(n,1) 
-    
-    # Extracting index positions for bootstrap resampling
-    BootInd = np.random.choice(n,n,replace=True).reshape(n,1)
-    BootInd.sort(axis=0)
-    
-    # Extracting index positions for test (not in bootstrap sample)
-    Tmp     = [i for i in indexes if i not in BootInd]
-    L       = len(Tmp)
-    TestInd = np.zeros([L,1]) 
-    for i in range(L):
-        TestInd[i] = np.asscalar(Tmp[i])
-    
-    # Boostrap resampling data set
-    data_boot          = np.zeros(shaped)
-    Design_matrix_boot = np.zeros(shapeD)
-    
-    for i in range(n):    
-        data_boot[i] = data_vector[int(BootInd[i])]
-        for j in range(shapeD[1]):
-            Design_matrix_boot[i,j] = Design_matrix[int(BootInd[i]),j]
-    
-    # Test data set
-    shapet             = TestInd.shape
-    data_test          = np.zeros(shapet)
-    Design_matrix_test = np.zeros([shapet[0],shapeD[1]])
-    
-    for i in range(shapet[0]):    
-        data_test[i] = data_vector[int(TestInd[i])]
-        for j in range(shapeD[1]):
-            Design_matrix_test[i,j] = Design_matrix[int(TestInd[i]),j]
-    
-    # Compute statistics on the bootstrap sample
-    BootMean = np.mean(data_boot)
-    BootVar  = np.var(data_boot)
-    BootStd  = np.std(data_boot)
-    
-    return data_boot, Design_matrix_boot, data_test, Design_matrix_test, BootMean, BootVar, BootStd
-    
+# Computing MSE and R2 wrt model complexity
+
+m_comp = shapeX[1] + 1
+MSE    = np.zeros([m_comp,1])
+R2     = np.zeros([m_comp,1])
+
+for i in range(m_comp):
+    pred, beta = ord_least_square(X[:,0:i],Z_n)
+
+    MSE[i]   = MSE_metric(Z_n,pred)
+    R2[i]    = R2_metric(Z_n,pred)
     
 
+plt.subplot(1, 2, 1)
+plt.plot(np.linspace(0,shapeX[1],shapeX[1]+1), MSE, 'g', lw=2)
+plt.xlabel(r'Model Complexity ($\beta_i$)')
+plt.ylabel('MSE')
+plt.grid(True)
 
-# 4. Interpolation using the estimated parameters  ######
+plt.subplot(1, 2, 2)
+plt.plot(np.linspace(0,shapeX[1],shapeX[1]+1), R2, 'r', lw=2)
+plt.xlabel(r'Model Complexity ($\beta_i$)')
+plt.ylabel('R2 score')
+plt.grid(True)
+
+plt.tight_layout()
+plt.show()
+    
+#plt.plot(X_test, y_noise, "c", label="$noise(x)$")
+
+##########################################################################################################################################
+# 5. Computing the metrics of the predictions and model assessment using bootstrap (with leave one out estimate)
+# Defining the data and design matrix to bootstrap
+
+X = basis_exp_2d(xf1,yf1,order=5)
+Z_n = Z + 0.1*np.max(Z)*np.random.randn(shapez[0]*shapez[1],1) 
+Data_vector   = Z_n
+shapeX = X.shape
+Design_matrix = X[:,0:2] 
+
+# Computing model assessment
+Err_train = np.zeros([shapeX[1]-1,1]) 
+Err_test  = np.zeros([shapeX[1]-1,1])
+
+for i in range(shapeX[1]-1):
+    Err_train[i], Err_test[i] = k_fold_CV(Data_vector,Design_matrix[:,0:(i+1)],k=2)
+
+plt.plot(np.linspace(0,42,43), Err_train, 'g', np.linspace(0,42,43), Err_test, 'r', lw=2)
+plt.xlabel(r'Model Complexity')
+plt.ylabel('Prediction Error')
+plt.legend(('Training set','Test set'))
+plt.grid(True)
+  
+      
+##############################################################################
+# 5. Testing interpolation using the estimated parameters  
 
 # Make data.
 x = np.arange(0, 1, 0.01)
@@ -145,7 +193,7 @@ z_pred_int = z_pred_int.reshape(x.shape)
 display_fig(z_pred_int,x,y,save=False)
 
 '''
-b)
+b)###################################################################################################################################
 '''
 
 #### Ridge regression and basis expansions with x,y correlations #####
@@ -168,29 +216,8 @@ X = basis_exp_2d(xf1,yf1,basis=5,alt=1)
 z_pred, beta = ridge_least_square(X, Z, lamb=0.5)
 z_pred       = z_pred.reshape(z.shape)
 
-# Scikit-learn least squares estimate
-#reg     = Ridge(alpha=0.5,fit_intercept=True)
-
-#reg.fit(X,Z)
-#z_sci = reg.predict(X)
-#z_sci = z_sci.reshape(z.shape)
 
 
-fig = plt.figure()
-ax  = fig.gca(projection='3d')
-surf_pred = ax.plot_surface(x, y, z_pred, cmap=cm.coolwarm,
-linewidth=0, antialiased=False)
-# Customize the z axis.
-ax.set_zlim(-0.10, 1.40)
-ax.zaxis.set_major_locator(LinearLocator(10))
-ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-ax.set_xlabel('x-axis')
-ax.set_ylabel('y-axis')
-ax.set_zlabel('z-axis')
-ax.set_title('Predicted function')
-# Add a color bar which maps values to colors.
-fig.colorbar(surf_pred, shrink=0.5, aspect=5)
-plt.show()
 #plt.savefig('Predicted_function_basis5_exp_xy_cor_ridge.png', dpi=600)
 
 
@@ -198,44 +225,13 @@ plt.show()
 c)
 '''
 
-#### Ridge regression and basis expansions with x,y correlations #####
-
-x = np.arange(0, 1, 0.05)
-y = np.arange(0, 1, 0.05)
-x, y = np.meshgrid(x,y)
-
-z = FrankeFunction(x, y)
-
-shapex = x.shape
-shapey = y.shape
-
-xf1 = x.flatten().reshape(shapex[0]*shapex[1],1)
-yf1 = y.flatten().reshape(shapey[0]*shapey[1],1)
-Z   = z.flatten().reshape(shapex[0]*shapex[1],1)
-
-X = basis_exp_2d(xf1,yf1,basis=5,alt=1)
 
 
-# Scikit-learn least squares estimate
-reg     = Lasso(alpha=0.00001,fit_intercept=True,max_iter=1000000)
-reg.fit(X,Z)
-z_sci   = reg.predict(X)
-z_sci   = z_sci.reshape(z.shape)
 
 
-fig = plt.figure()
-ax  = fig.gca(projection='3d')
-surf_pred = ax.plot_surface(x, y, z_sci, cmap=cm.coolwarm,
-linewidth=0, antialiased=False)
-# Customize the z axis.
-ax.set_zlim(-0.10, 1.40)
-ax.zaxis.set_major_locator(LinearLocator(10))
-ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-ax.set_xlabel('x-axis')
-ax.set_ylabel('y-axis')
-ax.set_zlabel('z-axis')
-ax.set_title('Predicted function')
-# Add a color bar which maps values to colors.
-fig.colorbar(surf_pred, shrink=0.5, aspect=5)
-plt.show()
-#plt.savefig('Predicted_function_basis5_exp_xy_cor_ridge.png', dpi=600)
+
+
+
+
+
+
