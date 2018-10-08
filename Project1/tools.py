@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Sep 12 13:14:31 2018
+Created on Thu Sep 13 15:29:45 2018
 
-@author: tlgreiner
+@author: tagreine
 """
+
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -47,7 +48,6 @@ def MSE_metric(y, y_):
     
     # compute the MSE score
     Err   = np.dot(np.transpose((y - y_)),(y - y_))/n
-    Err   = np.squeeze(Err)
     
     return Err
 
@@ -57,7 +57,7 @@ def Metrics_param(beta, y, y_, Design_matrix,compute_var=True):
     
     # if the variance is not assumed to be 1
     if compute_var == True:
-        shapey_  = y_.shape
+        shapey_ = y_.shape
         shapeb  = beta.shape
         A       = 1/(shapey_[0] - shapeb[0] - 1)
         B       = np.dot((y - y_).T,(y - y_)) 
@@ -99,7 +99,7 @@ def least_square(x,y,method='OLS',lamb=0):
     
         Hat  = np.dot(np.linalg.inv(np.dot(Xt,X)),Xt)
         beta = np.dot(Hat,y)
-        y_   = np.dot(X,beta).reshape(n,)
+        y_   = np.dot(X,beta)
         
     if method == 'Ridge':
         I = np.eye(p+1)
@@ -108,13 +108,13 @@ def least_square(x,y,method='OLS',lamb=0):
         # Define hat matrix
         Hat  = np.dot(np.linalg.inv(np.dot(Xt,X) + lamb*I),Xt)
         beta = np.dot(Hat,y)
-        y_   = np.dot(X,beta).reshape(n,)
+        y_   = np.dot(X,beta)
     
     if method == 'Lasso':
         Lasso_reg = linear_model.Lasso(lamb, fit_intercept=True, max_iter=150000)
         Lasso_reg.fit(X,y)
         beta = Lasso_reg.coef_.reshape(p+1,1)
-        y_ = Lasso_reg.predict(X).reshape(n,)
+        y_ = Lasso_reg.predict(X)
     
     return y_, beta
 
@@ -426,5 +426,4 @@ def plot_mean_and_CI(mean, lb, ub, color_mean=None, color_shading=None):
                      color=color_shading, alpha=.5)
     # plot the mean on top
     plt.plot(mean, color_mean)
-
 
