@@ -28,9 +28,9 @@ class Neural_Network(object):
         self.W3 = np.random.randn(self.hiddenLayerSize2,self.outputLayerSize)
         
         # Defining and initializing the biases
-        self.bias1 = np.random.randn(self.hiddenLayerSize1,1)
-        self.bias2 = np.random.randn(self.hiddenLayerSize2,1)
-        self.bias3 = np.random.randn(self.outputLayerSize,1)
+        self.bias1 = np.random.randn(1,self.hiddenLayerSize1)
+        self.bias2 = np.random.randn(1,self.hiddenLayerSize2)
+        self.bias3 = np.random.randn(1,self.outputLayerSize)
         
         
     def forwardProp(self,X):
@@ -94,11 +94,32 @@ class Neural_Network(object):
         # Returning the cost function derivatives wrt to weights 
         return dCdW3, dCdW2, dCdW1, dCdb4, dCdb3, dCdb2     
         
-    def gradientDescentOptimizer(self,):
-        a = 1
-        return a
+    def gradientDescentOptimizer(self,X,y,eta = 0.01, lmbda = 0.01,num_iter = 1000):
         
+        m = X.shape[0]
+
+        for i in range(num_iter):
+    
+            dCdW3, dCdW2, dCdW1, dCdb4, dCdb3, dCdb2 = self.costGrad(X,y)
+    
+            # Regularization (no regularization on biases)
+            GradW3 = dCdW3 + lmbda*dCdW3
+            GradW2 = dCdW2 + lmbda*dCdW2
+            GradW1 = dCdW1 + lmbda*dCdW1
+    
+            # Train weights and biases
+            self.W3 = (1/m)*(self.W3 - eta*GradW3)  
+            self.W2 = (1/m)*(self.W2 - eta*GradW2)
+            self.W1 = (1/m)*(self.W1 - eta*GradW1)
         
+            self.bias3 = (1/m)*(self.bias3 - eta*dCdb4)  
+            self.bias2 = (1/m)*(self.bias2 - eta*dCdb3)
+            self.bias1 = (1/m)*(self.bias1 - eta*dCdb2)
+            
+            if i == num_iter - 1:
+                y_pred = self.forwardProp(X,y)
+    
+            return y_pred  
         
     
     #=========================activation functions=============================    
@@ -136,4 +157,12 @@ class Neural_Network(object):
 
 
 
+        
+    
+    
+    
+    
+    
+    
+    
     
