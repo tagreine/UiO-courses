@@ -91,9 +91,9 @@ X_t = X_test[0:200,:].reshape(200,n)
 Y_t = Y_test[0:200,:].reshape(200,1)
 
 
-error_l, error_t_l     = bootstrap_resampling_neural_net_classifier(Y, Y_t, X, X_t, lmbdas,hidden_layers = (20,20), activation='logistic', n_boostraps = 10)
-error_tan, error_t_tan = bootstrap_resampling_neural_net_classifier(Y, Y_t, X, X_t, lmbdas,hidden_layers = (20,20), activation='tanh', n_boostraps = 10)
-error_r, error_t_r     = bootstrap_resampling_neural_net_classifier(Y, Y_t, X, X_t, lmbdas,hidden_layers = (20,20), activation='relu', n_boostraps = 10)
+error_l, error_t_l     = bootstrap_resampling_neural_net_classifier(Y, Y_t, X, X_t, lmbdas, batch=50,hidden_layers = (20,20), activation='logistic', n_boostraps = 5)
+error_tan, error_t_tan = bootstrap_resampling_neural_net_classifier(Y, Y_t, X, X_t, lmbdas, batch=50,hidden_layers = (20,20), activation='tanh', n_boostraps = 5)
+error_r, error_t_r     = bootstrap_resampling_neural_net_classifier(Y, Y_t, X, X_t, lmbdas, batch=50,hidden_layers = (20,20), activation='relu', n_boostraps = 5)
 
 
 # plot states
@@ -122,5 +122,5 @@ axarr[2].set_xlabel('$\\lambda$')
 axarr[2].grid()
 
 fig.subplots_adjust(right=2.5)
-plt.savefig('Results_Neural_Net_Classification/Bootstrap_resampling_Neural_net_activations.png', dpi=600,bbox_inches = 'tight')
+plt.savefig('tull.png', dpi=600,bbox_inches = 'tight')
 plt.show()
