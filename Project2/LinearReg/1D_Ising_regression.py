@@ -20,15 +20,8 @@ import numpy as np
 np.random.seed(12)
 import warnings
 import matplotlib.pyplot as plt
-from tools import least_square, least_square_ridge_svd, MSE_metric, R2_metric, bootstrap_resampling_regression
+from tools import least_square, least_square_ridge_svd, MSE_metric, R2_metric
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.utils import resample
-from sklearn.model_selection import train_test_split
-
-#import seaborn
-
-
 
 #Comment this to turn on warnings
 warnings.filterwarnings('ignore')
@@ -102,6 +95,7 @@ test_r2_lasso   = np.zeros([len(lmbdas),1])
 beta_ols   = []
 beta_ridge = []
 beta_lasso = []
+
 
 i = 0
 
@@ -210,7 +204,6 @@ plt.tick_params(labelsize=16)
 #plt.savefig('Results/' + 'Ising_Regression_R2.png', dpi=600,bbox_inches = 'tight')
 plt.show()
 
-
 # Plot our performance MSE on both the training and test data
 
 plt.semilogx(lmbdas.reshape(len(lmbdas),1), train_err_ols, 'b',label='Train (OLS)')
@@ -235,41 +228,7 @@ plt.tick_params(labelsize=16)
 plt.show()
 
 
-#===================================================================================================
-# Model assesment using bootstrap
 
-Data_vector    = Data[1][:n_samples]
-Design_matrix  = Data[0][:n_samples]
-
-x_train, x_test, y_train, y_test = train_test_split(Design_matrix, Data_vector, test_size=0.2)
-y_train = y_train.reshape(y_train.shape[0],1) 
-y_test  = y_test.reshape(y_test.shape[0],1)
-
-model_comp = np.linspace(0.00001,1,100)
-n_boostraps = 200
-
-error, bias, variance, error_t, bias_t, variance_t = bootstrap_resampling_regression(y_train, y_test, x_train, x_test, model_comp, method='Ridge', n_boostraps, intercept=True)
-
-
-
-plt.subplot(1, 2, 1)
-plt.plot(lmbdas, error, 'g', lmbdas, error_t, 'r', lw=2)
-plt.xlabel(r'$\lambda$')
-plt.ylabel('Prediction Error')
-plt.legend(('Training set','Test set'))
-plt.grid(True)
-
-
-plt.subplot(1, 2, 2)
-plt.plot(lmbdas, variance, 'k', lmbdas, variance_t, 'c', lmbdas, bias, 'y', lmbdas, bias_t, 'm', lw=2)
-plt.xlabel(r'$\lambda$')
-#plt.ylabel('Variance')
-plt.legend(('Training variance','Test variance','Training bias','Test bias'))
-plt.grid(True)
-
-plt.tight_layout()
-#plt.savefig('Prediction_erro_bias_variance_ols.png', dpi=600)
-plt.show()
 
 
 
