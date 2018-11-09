@@ -249,7 +249,7 @@ def neural_net_batch( X, Y, hiddenLayerSize1=20,hiddenLayerSize2=20, epochs = 10
 #=========================model assessment=============================    
 
 
-def bootstrap_resampling_neural_net_classifier(y_train, y_test, x_train, x_test, model_complx,hidden_layers = (15,15), activation='relu', n_boostraps = 500):
+def bootstrap_resampling_neural_net_classifier(y_train, y_test, x_train, x_test, model_complx, batch,hidden_layers = (15,15), activation='relu', n_boostraps = 500):
     
     # Bootstrap algorithm for model assessment (not fully correct bootstrap, since test samples could be drawn from the samples which are within training set)
     
@@ -264,7 +264,7 @@ def bootstrap_resampling_neural_net_classifier(y_train, y_test, x_train, x_test,
     for j in range(mc):   
         
         
-        MLP_class = MLPClassifier(activation=activation,solver='sgd', alpha=model_complx[j], hidden_layer_sizes=hidden_layers, shuffle=True)
+        MLP_class = MLPClassifier(activation=activation,solver='sgd', batch_size=batch, alpha=model_complx[j], hidden_layer_sizes=hidden_layers, shuffle=True)
         
         for i in range(n_boostraps):
             x_, y_   = resample(x_train, y_train)
