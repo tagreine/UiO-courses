@@ -130,8 +130,8 @@ for i,lm in enumerate(lmbdas):
 # Testing gave ok results for 
     
     #Sigmoid: alpha = 1, epochs = 500, batch_size = 50, 20 neurons
-    #tanh:    alpha = 
-    #Relu:    alpha = 
+    #tanh:    alpha = 1, epochs = 500, batch_size = 50, 20 neurons
+    #Relu:    alpha = 0.1, epochs = 500, batch_size = 50, 20 neurons
 
 fig, axarr = plt.subplots(nrows=1, ncols=3)
 
