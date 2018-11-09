@@ -15,12 +15,15 @@ Clint Richardson, Charles Fisher, David Schwab in Notebook 6:
 '''
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import pickle,os
+import pickle
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
-from NN_functions import sigmoid, sigmoidGradient, gradientDescent, logistic_reg_cost, regression_cost
+from NN_functions import sigmoid, gradientDescent, predict, predict_nn, logistic_regression_batch
+from NeuralNetwork import neural_net_batch, initialize_params, forwardProp, costGrad, gradientDescentOptimizer
+from tools import R2_metric, MSE_metric
 import numpy as np
 import warnings
+
 #Comment this to turn on warnings
 warnings.filterwarnings('ignore')
 
@@ -65,35 +68,98 @@ Y=np.concatenate((Y_ordered,Y_disordered))
 # to create the training and test sets
 X_train,X_test,Y_train,Y_test=train_test_split(X,Y,train_size=train_to_test_ratio)
 
-# full data set
-#X=np.concatenate((X_critical,X))
-#Y=np.concatenate((Y_critical,Y))
 
-print('X_train shape:', X_train.shape)
-print('Y_train shape:', Y_train.shape)
-print()
-print(X_train.shape[0], 'train samples')
-#print(X_critical.shape[0], 'critical samples')
-print(X_test.shape[0], 'test samples')
+# We will train the estimators using stochastic gradient descent
+
+Y_train = Y_train.reshape(Y_train.shape[0],1)
+Y_test  = Y_test.reshape(Y_test.shape[0],1)
+
+lmbdas = np.logspace(-5,2,8)
+
+m = X_train.shape[0]
+n = X_train.shape[1]
+
+# Extract a smaller sample to reduce computational time
+X   = X_train[0:800,:].reshape(800,n).T
+Y   = Y_train[0:800,:].reshape(800,1).T
+X_t = X_test[0:200,:].reshape(200,n).T
+Y_t = Y_test[0:200,:].reshape(200,1).T
 
 
-cmap_args=dict(cmap='plasma_r')
+# preallocate data
+train_accuracy_SGD = np.zeros(lmbdas.shape,np.float64)
+test_accuracy_SGD  = np.zeros(lmbdas.shape,np.float64)
+train_R2_SGD       = np.zeros(lmbdas.shape,np.float64)
+test_R2_SGD        = np.zeros(lmbdas.shape,np.float64)
+train_MSE_SGD      = np.zeros(lmbdas.shape,np.float64)
+test_MSE_SGD       = np.zeros(lmbdas.shape,np.float64)
 
-# plot states
-fig, axarr = plt.subplots(nrows=1, ncols=2)
+# Testing neural network=================================================================
 
-axarr[0].imshow(X_ordered[20001].reshape(L,L),**cmap_args)
-axarr[0].set_title('$\\mathrm{Ordered\\ phase}$',fontsize=16)
-axarr[0].tick_params(labelsize=16)
+# Define hyperparameters
+inputLayerSize   = X.shape[0]
+outputLayerSize  = 1
+hiddenLayerSize1 = 20
+hiddenLayerSize2 = 20
 
-im=axarr[1].imshow(X_disordered[50001].reshape(L,L),**cmap_args)
-axarr[1].set_title('$\\mathrm{Disordered\\ phase}$',fontsize=16)
-axarr[1].tick_params(labelsize=16)
+# =======================================================================================
 
-#axarr[1].imshow(X_critical[10001].reshape(L,L),**cmap_args)
-#axarr[1].set_title('$\\mathrm{critical\\ region}$',fontsize=16)
-#axarr[1].tick_params(labelsize=16)
+for i,lm in enumerate(lmbdas):
+      
 
-fig.subplots_adjust(right=1.0)
+    cost_SGD, W1, W2, W3, bias1, bias2, bias3 = neural_net_batch( X, Y, hiddenLayerSize1,hiddenLayerSize2, epochs = 500, batch_size = 50, alpha = 0.1, lmbda = lm, activation= 'Relu', intercept = 'False')
+
+    Y_train_pred,z4,z3,z2,a3,a2,a1 = forwardProp(X,W1,W2,W3,bias1,bias2,bias3,activation='Relu')
+    Y_test_pred,z4,z3,z2,a3,a2,a1  = forwardProp(X_t,W1,W2,W3,bias1,bias2,bias3,activation='Relu')
+    
+    Y_train_pred_SGD = predict_nn(Y_train_pred.T,0.50).reshape(1,800)
+    Y_test_pred_SGD  = predict_nn(Y_test_pred.T,0.50).reshape(1,200)
+      
+    train_accuracy_SGD[i] = accuracy_score(Y.T,Y_train_pred_SGD.T)
+    test_accuracy_SGD[i]  = accuracy_score(Y_t.T,Y_test_pred_SGD.T)
+    
+    train_R2_SGD[i]       = R2_metric(Y.T,Y_train_pred_SGD.T)
+    test_R2_SGD[i]        = R2_metric(Y_t.T,Y_test_pred_SGD.T)
+
+    train_MSE_SGD[i]      = MSE_metric(Y.T,Y_train_pred_SGD.T)
+    test_MSE_SGD[i]       = MSE_metric(Y_t.T,Y_test_pred_SGD.T)
+  
+    print( 'Next regularization parameter' )
+    
+
+# Testing gave ok results for 
+    
+    #Sigmoid: alpha = 1, epochs = 500, batch_size = 50, 20 neurons
+    #tanh:    alpha = 
+    #Relu:    alpha = 
+
+fig, axarr = plt.subplots(nrows=1, ncols=3)
+
+axarr[0].semilogx(lmbdas,train_accuracy_SGD,'*--b',lmbdas,test_accuracy_SGD,'*--r', lmbdas[np.argmax(test_accuracy_SGD)], np.max(test_accuracy_SGD), 'x--k',lw=2)
+axarr[0].legend(('Training set','Test set'))
+axarr[0].set_ylabel('$\\mathrm{Accuracy}$')
+axarr[0].set_xlabel('$\\lambda$')
+axarr[0].grid()
+
+axarr[1].semilogx(lmbdas,train_R2_SGD,'*--y',lmbdas,test_R2_SGD,'*--c',lmbdas[np.argmax(test_R2_SGD)], np.max(test_R2_SGD), 'x--k',lw=2)
+axarr[1].legend(('Training set','Test set'))
+axarr[1].set_ylabel('$\\mathrm{R2 score}$')
+axarr[1].set_xlabel('$\\lambda$')
+axarr[1].grid()
+
+axarr[2].semilogx(lmbdas,train_MSE_SGD,'*--g',lmbdas,test_MSE_SGD,'*--m',lmbdas[np.argmin(test_MSE_SGD)], np.min(test_MSE_SGD), 'x--k',lw=2)
+axarr[2].legend(('Training set','Test set'))
+axarr[2].set_ylabel('$\\mathrm{MSE}$')
+axarr[2].set_xlabel('$\\lambda$')
+axarr[2].grid()
+
+
+fig.subplots_adjust(right=2.5)
+
+#plt.savefig('Results_Neural_Net_Classification/Classification_accuracy_R2_MSE_train_test_NN_Relu.png', dpi=600,bbox_inches = 'tight')
 
 plt.show()
+
+
+
+

@@ -16,14 +16,13 @@ Clint Richardson, Charles Fisher, David Schwab in Notebook 6:
 
 import matplotlib.pyplot as plt
 import pickle
-from sklearn.metrics import accuracy_score, r2_score
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
-from NN_functions import sigmoid, gradientDescent, predict,
-from tools import R2_metric, MSE_metric
+from NN_functions import sigmoid, gradientDescent, predict, logistic_regression_batch
+from tools import R2_metric, MSE_metric,bootstrap_resampling_regression
 import numpy as np
 import warnings
-from sklearn import linear_model
-from sklearn.utils import resample
+from time import sleep
 #Comment this to turn on warnings
 warnings.filterwarnings('ignore')
 
@@ -35,9 +34,7 @@ J   = -1.0 # Ising interaction strength
 T   = np.linspace(0.25,4.0,16) # set of temperatures (including critical temperatures)
 T_c = 2.26 # Onsager critical temperature in the TD limit
 
-###### define ML parameters
-num_classes         = 2
-train_to_test_ratio = 0.8 # training samples
+
 
 # Loading the 2D Ising model data : downloaded from https://physics.bu.edu/~pankajm/ML-Review-Datasets/isingMC/
 data = pickle.load(open('Ising2DFM_reSample_L40_T=All.pkl','rb')) # pickle reads the file and returns the Python object (1D array, compressed bits)
@@ -77,11 +74,11 @@ Y=np.concatenate((Y_ordered,Y_disordered))
 
 # pick random data points from ordered and disordered states 
 # to create the training and test sets
+
+###### define ML parameters
+train_to_test_ratio           = 0.8 # training samples
 X_train,X_test,Y_train,Y_test = train_test_split(X,Y,train_size=train_to_test_ratio)
 
-# full data set
-#X=np.concatenate((X_critical,X))
-#Y=np.concatenate((Y_critical,Y))
 
 print('X_train shape:', X_train.shape)
 print('Y_train shape:', Y_train.shape)
@@ -115,10 +112,7 @@ plt.show()
 
 ############################### Training ########################################
 
-# We will train the estimators using stochastic gradient descent
-
-m = X_train.shape[0]
-n = X_train.shape[1]
+# We will train the estimators using stochastic gradient descent with mini batches
 
 Y_train = Y_train.reshape(Y_train.shape[0],1)
 Y_test  = Y_test.reshape(Y_test.shape[0],1)
@@ -133,56 +127,55 @@ test_R2_SGD        = np.zeros(lmbdas.shape,np.float64)
 train_MSE_SGD      = np.zeros(lmbdas.shape,np.float64)
 test_MSE_SGD       = np.zeros(lmbdas.shape,np.float64)
 
-#train_accuracy        = np.zeros(lmbdas.shape,np.float64)
-#test_accuracy         = np.zeros(lmbdas.shape,np.float64)
 
+m = X_train.shape[0]
+n = X_train.shape[1]
 
-num_iter = m
-import time
-t = time.time()
+# Extract a smaller sample to reduce computational time
+X   = X_train[0:2000,:].reshape(2000,n)
+Y   = Y_train[0:2000,:].reshape(2000,1)
+X_t = X_test[0:2000,:].reshape(2000,n)
+Y_t = Y_test[0:2000,:].reshape(2000,1)
+
 for i,lm in enumerate(lmbdas):
+    sleep(2)
     
     np.random.seed(1)
-    theta_train_SGD = 0.01*np.random.random(1600).reshape(X_train.shape[1],1)
-    epochs = 10
-    
-    for k in range(epochs):
+    theta_train = np.zeros(X.shape[1]).reshape(X.shape[1],1)
 
-        for j in range(num_iter):
-    
-            cost_SGD, theta_train_SGD = gradientDescent(X_train[j,:].reshape(1,n), Y_train[j,:].reshape(1,1), theta_train_SGD, method = 'Logistic', alpha = 0.1, lmbda=lm , num_iters = 1, intercept = 'False')
-
-    
-    # Predict the magnetic phases. For ordered phase the prediction has been set to threshold >=0.5 
-    Y_train_pred_SGD      = predict(X_train.dot(theta_train_SGD))
-    Y_test_pred_SGD       = predict(X_test.dot(theta_train_SGD))
+    cost_SGD, theta_train = logistic_regression_batch( X, Y, theta_train, epochs = 500, batch_size = 50,alpha = 0.05, lmbda = lm, intercept = 'False')
+            
+    Y_train_pred_SGD      = predict(X.dot(theta_train),0.5)
+    Y_test_pred_SGD       = predict(X_t.dot(theta_train),0.5)
       
-    train_accuracy_SGD[i] = accuracy_score(Y_train,Y_train_pred_SGD)
-    test_accuracy_SGD[i]  = accuracy_score(Y_test,Y_test_pred_SGD)
+    train_accuracy_SGD[i] = accuracy_score(Y,Y_train_pred_SGD)
+    test_accuracy_SGD[i]  = accuracy_score(Y_t,Y_test_pred_SGD)
     
-    train_R2_SGD[i]       = r2_score(Y_train,Y_train_pred_SGD)
-    test_R2_SGD[i]        = r2_score(Y_test,Y_test_pred_SGD)
+    train_R2_SGD[i]       = R2_metric(Y,Y_train_pred_SGD)
+    test_R2_SGD[i]        = R2_metric(Y_t,Y_test_pred_SGD)
 
-    train_MSE_SGD[i]      = MSE_metric(Y_train,Y_train_pred_SGD)
-    test_MSE_SGD[i]       = MSE_metric(Y_test,Y_test_pred_SGD)
+    train_MSE_SGD[i]      = MSE_metric(Y,Y_train_pred_SGD)
+    test_MSE_SGD[i]       = MSE_metric(Y_t,Y_test_pred_SGD)
+    
+    
+    print( 'Next regularization parameter' )
+    
 
-elapsed = time.time() - t
-  
 fig, axarr = plt.subplots(nrows=1, ncols=3)
 
-axarr[0].semilogx(lmbdas,train_accuracy_SGD,'*--b',lmbdas,test_accuracy_SGD,'*--r',lw=2)
+axarr[0].semilogx(lmbdas,train_accuracy_SGD,'*--b',lmbdas,test_accuracy_SGD,'*--r', lmbdas[np.argmax(test_accuracy_SGD)], np.max(test_accuracy_SGD), 'x--k',lw=2)
 axarr[0].legend(('Training set','Test set'))
 axarr[0].set_ylabel('$\\mathrm{Accuracy}$')
 axarr[0].set_xlabel('$\\lambda$')
 axarr[0].grid()
 
-axarr[1].semilogx(lmbdas,train_R2_SGD,'*--k',lmbdas,test_R2_SGD,'*--c',lw=2)
+axarr[1].semilogx(lmbdas,train_R2_SGD,'*--y',lmbdas,test_R2_SGD,'*--c',lmbdas[np.argmax(test_R2_SGD)], np.max(test_R2_SGD), 'x--k',lw=2)
 axarr[1].legend(('Training set','Test set'))
 axarr[1].set_ylabel('$\\mathrm{R2 score}$')
 axarr[1].set_xlabel('$\\lambda$')
 axarr[1].grid()
 
-axarr[2].semilogx(lmbdas,train_MSE_SGD,'*--y',lmbdas,test_MSE_SGD,'*--m',lw=2)
+axarr[2].semilogx(lmbdas,train_MSE_SGD,'*--g',lmbdas,test_MSE_SGD,'*--m',lmbdas[np.argmin(test_MSE_SGD)], np.min(test_MSE_SGD), 'x--k',lw=2)
 axarr[2].legend(('Training set','Test set'))
 axarr[2].set_ylabel('$\\mathrm{MSE}$')
 axarr[2].set_xlabel('$\\lambda$')
@@ -191,85 +184,16 @@ axarr[2].grid()
 
 fig.subplots_adjust(right=2.5)
 
-#plt.savefig('Results_Logistic_Classification/Ordered_Disordered.png', dpi=600,bbox_inches = 'tight')
-plt.show()
-#===================================================================================================
-
-# We will train the estimators and assess the model using stochastic gradient descent and bootstrap
-
-model_comp = lmbdas.copy()
-n_boostraps = 100
-
-def bootstrap_resampling_logistic(y_train, y_test, x_train, x_test, model_complx, n_boostraps = 500):
-    
-    # Bootstrap algorithm for model assessment
-    
-    
-    mc = len(model_complx)
-    
-    error    = np.zeros([mc])
-    bias     = np.zeros([mc])
-    variance = np.zeros([mc])
-
-    error_t    = np.zeros([mc])
-    bias_t     = np.zeros([mc])
-    variance_t = np.zeros([mc])
-    
-    for j in range(mc):   
-        
-        y_pred   = np.empty((y_train.shape[0], n_boostraps))
-        y_pred_t = np.empty((y_test.shape[0], n_boostraps))
-        
-        logreg_SGD = linear_model.SGDClassifier(loss='log', penalty='l2', alpha=model_complx[j], max_iter=100, 
-                                           shuffle=False, random_state=1, learning_rate='optimal')
-        
-        for i in range(n_boostraps):
-            x_, y_ = resample(x_train, y_train)
-            
-            # Predict training and test data for each bootstrap
-            y_pred[:, i]   = np.ravel(logreg_SGD.fit(x_,y_).predict(x_train))
-            y_pred_t[:, i] = np.ravel(logreg_SGD.fit(x_,y_).predict(x_test))
-            
-            # Compute the error, variance and bias squared at eah point in the model    
-        error[j]    = np.mean( np.mean((y_train - y_pred)**2, axis=1, keepdims=True) )
-        bias[j]     = np.mean( (y_train - np.mean(y_pred, axis=1, keepdims=True))**2 )
-        variance[j] = np.mean( np.var(y_pred, axis=1, keepdims=True) )
-            
-        error_t[j]    = np.mean( np.mean((y_test - y_pred_t)**2, axis=1, keepdims=True) )
-        bias_t[j]     = np.mean( (y_test - np.mean(y_pred_t, axis=1, keepdims=True))**2 )
-        variance_t[j] = np.mean( np.var(y_pred_t, axis=1, keepdims=True) )
-            
-    return error, bias, variance, error_t, bias_t, variance_t
-
-
-
-x_train = X_train[0:5000,:]
-y_train = Y_train[0:5000,:]
-x_test  = X_test[0:5000,:]
-y_test  = Y_test[0:5000,:]
-
-error, bias, variance, error_t, bias_t, variance_t = bootstrap_resampling_logistic(y_train, y_test, x_train, x_test, model_comp, n_boostraps)
-
-
-# plot states
-fig, axarr = plt.subplots(nrows=1, ncols=2)
-
-axarr[0].semilogx(model_comp, error, '*--b', model_comp, error_t, '*--r', lw=2)
-#axarr[0].tick_params(labelsize=16)
-axarr[0].legend(('Training set','Test set'))
-axarr[0].set_ylabel('$\\mathrm{Prediction error}$')
-axarr[0].set_xlabel('$\\lambda$')
-axarr[0].grid()
-
-axarr[1].semilogx(model_comp, variance, '--k', model_comp, variance_t, '--c', model_comp, bias, 'y', model_comp, bias_t, 'm', lw=2)
-#axarr[1].tick_params(labelsize=16)
-axarr[1].legend(('Training variance','Test variance','Training bias','Test bias'))
-axarr[1].set_xlabel('$\\lambda$')
-axarr[1].grid()
-fig.subplots_adjust(right=1.0)
-#plt.savefig('Results_Logistic_Classification/Ordered_Disordered.png', dpi=600,bbox_inches = 'tight')
+#plt.savefig('Results_Logistic_Classification/Classification_accuracy_R2_MSE_train_test.png', dpi=600,bbox_inches = 'tight')
 
 plt.show()
+
+  
+
+
+
+
+
 
 
 
