@@ -28,18 +28,22 @@ def sigmoidGradient(z):
     return np.multiply(sigmoid,(1 - sigmoid))
 
 
-#=================Downloaded functions=================================================================================
 
-def predict(X):
+#=================Prediction=================================================================================
+
+def predict(X,threshold):
     prob = sigmoid(X)
     
     probabilities = np.zeros([prob.shape[0],prob.shape[1]])
-    probabilities[prob>=0.5] = 1
-    #probabilities[prob<0.5]  = 0    
+    probabilities[prob>=threshold] = 1  
     
     return probabilities
 
-
+def predict_nn(Y,threshold):    
+    Y[Y>=threshold] = 1
+    Y[Y<threshold] = 0
+    probabilities   = Y
+    return probabilities
 
 #=====================Cost functions====================================================================================
 
@@ -61,9 +65,8 @@ def logistic_reg_cost(x, y, theta, lmbda = 0.01, intercept = 'False'):
     # Compute the non-linear function
     g = sigmoid(z)
     
-    
     # Regularization term for cost function
-    RegCost = (lmbda/m)*np.transpose( theta ).dot( theta )
+    RegCost = (lmbda/2*m)*np.transpose( theta ).dot( theta )
     # Logistic regression cost function
     Cost    = ( 1/m )*( - np.transpose( y ).dot( np.log( g ) ) - np.transpose( ( 1 - y ) ).dot( np.log( 1 - g ) ) ) + RegCost
     
@@ -90,139 +93,58 @@ def regression_cost(x, y, theta, lmbda = 0.01, intercept = 'False'):
     
     return Cost
 
-
+def log_likelihood(x, y, theta):
+    m    = x.shape[0] 
+    pred = np.dot(x, theta)
+    cost = (1/m)*np.sum( y*pred - np.log(1 + np.exp(pred)) )
+    return cost
 
 
 
 #=====================Optimization algorithms====================================================================================
 
-def gradientDescent(x, y, theta, method = 'Logistic', alpha = 0.001, lmbda = 0.001, num_iters = 100, intercept = 'False'):   
+def gradientDescent(x, y, theta, alpha = 0.001, lmbda = 0.001, num_iter=100, intercept = 'False',print_cost= 'True'):   
     # Gradient descent optimization algorithm 
     # The algorithm is written using L2 norm regularization. 
     # Set lmbda = 0.0 for no regularization
     
-    m = x.shape[0]
+  
+    if intercept == 'True':
+        X = np.c_[np.ones([x.shape[0],1]),x]
+    elif intercept == 'False':
+        X = x
+    
+    m = X.shape[0]
+    
+    for step in range(num_iter):
+        z = np.dot(X, theta)
+        predictions = sigmoid(z)
 
-    Cost = np.zeros(num_iters)    
-    
-    if method == 'Logistic':
+        # Update weights with gradient
+        output_error = y - predictions
+        gradient = np.dot(X.T, output_error)
+        theta += ( 1/m )*alpha * (gradient + lmbda*theta)
         
-        if intercept == 'True':
-            X = np.c_[np.ones([x.shape[0],1]),x]
-        elif intercept == 'False':
-            X = x
-       
-        theta_new = theta
+        Cost = log_likelihood(X, y, theta)
         
-        for i in range(num_iters):
+        if print_cost == 'True':
+            if step % 100 == 0:
+                print( Cost )
             
-            # Compute the linear function 
-            z = X.dot(theta_new)
-            # Compute the non-linear function
-            g = sigmoid(z)
-            # Regularization term for gradient descent
-            RegGrad = ( lmbda/m  )*theta
-            # Gradient of the cost function
-            Grad    = ( 1/m )*np.transpose(X).dot( g - y ) + RegGrad                
-            # Do the gradient descent optimization
-            theta_new = theta_new - alpha*Grad 
-            
-            # Save the cost for every iteration
-            Cost[i] = logistic_reg_cost(X, y, theta_new, lmbda, intercept = 'False')
-            
-    if method == 'Regression':
-        
-        if intercept == 'True':
-            X = np.c_[np.ones([x.shape[0],1]),x]
-        elif intercept == 'False':
-            X = x
-       
-        theta_new = theta
-        
-        for i in range(num_iters):
-            
-            # Regularization term for gradient descent
-            RegGrad = ( lmbda/( 2*m ) )*theta
-            # Gradient of the cost function
-            Grad    = ( 1/m )*np.transpose(X).dot( X.dot(theta_new) - y ) + RegGrad                
-            # Do the gradient descent optimization
-            theta_new = theta_new - alpha*Grad 
-            
-            # Save the cost for every iteration
-            Cost[i] = regression_cost(X, y, theta_new, lmbda, intercept = 'False')
-      
-    return Cost, theta_new
-
-
-
-# Gradient descent with inbuildt stochastic optimization 
-    
-    # Not optimal!!! rewrite 
-
-def optimizer_SGD(x, y, theta, method = 'Logistic', alpha = 0.001, lmbda = 0.001, num_iters = 100, num_data = 1000, intercept = 'False'):   
-    # Stochastic gradient descent optimization algorithm 
-    # The algorithm is written using L2 norm regularization. 
-    # Set lmbda = 0.0 for no regularization
-    
-    shapex = x.shape
-    
-    Data = np.c_[x,y]
-    
-    np.random.shuffle(Data)
-    
-    x = Data[:,0:shapex[1]]
-    y = Data[:,(shapex[1] + 1):]
-    
-    m = len(y)
-
-    Cost = np.zeros(num_data)    
-    
-    if method == 'Logistic':
-        
-        if intercept == 'True':
-            X = np.c_[np.ones([x.shape[0],1]),x]
-        elif intercept == 'False':
-            X = x
-       
-        theta_new = theta
-        
-        for j in range(num_data):
-            
-            for i in range(num_iters):
-            
-                # Compute the linear function 
-                z = X[j,:].dot(theta_new)
-                # Compute the non-linear function
-                g = sigmoid(z)
-                # Regularization term for gradient descent
-                RegGrad = ( lmbda )*theta
-                # Gradient of the cost function
-                Grad    = np.transpose(X[j,:])*( g - y[j,:] ) + RegGrad                
-                # Do the gradient descent optimization
-                theta_new = theta_new - alpha*Grad 
-                
-                # Save the cost for every iteration
-        Cost[j] = logistic_reg_cost(X, y, theta_new, lmbda, intercept = 'False')
-            
-    if method == 'Regression':
-        
-        if intercept == 'True':
-            X = np.c_[np.ones([x.shape[0],1]),x]
-        elif intercept == 'False':
-            X = x
-       
-        theta_new = theta
-        
-        for i in range(num_iters):
-            
-            # Regularization term for gradient descent
-            RegGrad = ( lmbda/( 2*m ) )*theta
-            # Gradient of the cost function
-            Grad    = ( 1/m )*np.transpose(X).dot( X.dot(theta_new) - y ) + RegGrad                
-            # Do the gradient descent optimization
-            theta_new = theta_new - alpha*Grad 
-            
-            # Save the cost for every iteration
-            Cost[i] = regression_cost(x, y, theta_new, lmbda, intercept = 'False')
-      
     return Cost, theta
+
+
+def logistic_regression_batch( X, Y, theta_train, epochs = 100, batch_size = 10,alpha = 0.0001, lmbda = 0.01, intercept = 'False'):    
+    
+    m = X.shape[0]
+      
+    for k in range(epochs):
+        for j in range(np.int(m/batch_size)-1):
+            cost_SGD, theta = gradientDescent(X[(j*batch_size):((j + 1)*batch_size),:].reshape(batch_size,X.shape[1]), Y[(j*batch_size):((j + 1)*batch_size),:].reshape(batch_size,1), theta_train, alpha, lmbda, num_iter=1, intercept = 'False')
+            theta_train = theta.copy()
+            
+            if j % 1000 == 0:
+                print( cost_SGD)
+    return cost_SGD, theta 
+
+

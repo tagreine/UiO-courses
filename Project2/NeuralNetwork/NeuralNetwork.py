@@ -9,12 +9,12 @@ Created on Mon Oct 15 15:25:08 2018
 Defining a python class for neural networks 
 '''
 import numpy as np
+from sklearn.neural_network import MLPClassifier
+from sklearn.utils import resample
 
         
 # Defining and initializing the weights
 def initialize_params(inputLayerSize,hiddenLayerSize1,hiddenLayerSize2,outputLayerSize):
-
-    #Params = {}
     
     W1 = np.random.randn(hiddenLayerSize1,inputLayerSize)*0.01
     W2 = np.random.randn(hiddenLayerSize2,hiddenLayerSize1)*0.01
@@ -37,7 +37,7 @@ def forwardProp(X,W1,W2,W3,bias1,bias2,bias3,activation = 'sigmoid'):
     # from layer l to layer l+1 
     
     # Input layer       
-    a1 = X    
+    a1 = X.copy()    
     # Hidden layers
     z2 = W1.dot(a1) + bias1    
     if activation == 'sigmoid':    
@@ -74,28 +74,50 @@ def costGrad(X,y,W1,W2,W3,bias1,bias2,bias3,activation = 'sigmoid'):
         
     # Do forward propagation
     y_pred,z4,z3,z2,a3,a2,a1 = forwardProp(X,W1,W2,W3,bias1,bias2,bias3,activation)
-        
+    
+ 
     # Do back propagation errors in all layer (exept input layer)        
     # Define the error terms and derivatives wrt the weights 
     # Output error
+    
+    if activation == 'sigmoid':
+        # Output layer
+        delta4 = -(y - y_pred)
+        
+        # Hidden layer 2 error
+        delta3 = np.multiply( np.dot( W3.T , delta4 ) , sigmoidGradient(z3) )  
+        
+        # Hidden layer 1 error
+        delta2 = np.multiply( np.dot( W2.T , delta3 ) , sigmoidGradient(z2) ) 
+        
+    if activation == 'tanh':
+        # Output layer
+        delta4 = -(y - y_pred) 
+        
+        # Hidden layer 2 error
+        delta3 = np.multiply( np.dot( W3.T , delta4 ) , tanhGradient(z3) )  
+        
+        # Hidden layer 1 error
+        delta2 = np.multiply( np.dot( W2.T , delta3 ) , tanhGradient(z2) )
+        
+    if activation == 'Relu':
+        # Output layer
+        delta4 = -(y - y_pred)
+        
+        # Hidden layer 2 error
+        delta3 = np.multiply( np.dot( W3.T , delta4 ) , ReluGradient(z3) )  
+        
+        # Hidden layer 1 error
+        delta2 = np.multiply( np.dot( W2.T , delta3 ) , ReluGradient(z2) ) 
 
-    # Output layer
-    delta4 = np.multiply( -(y - y_pred) , sigmoidGradient(z4))  
-        
-    # Hidden layer 2 error
-    delta3 = np.multiply( np.dot( W3.T , delta4 ) , sigmoidGradient(z3) )  
-        
-    # Hidden layer 1 error
-    delta2 = np.multiply( np.dot( W2.T , delta3 ) , sigmoidGradient(z2) ) 
-        
     # Partial derivatives of cost function wrt weights and biases
     dCdW3  = np.dot( delta4 , a3.T)
     dCdW2  = np.dot( delta3 , a2.T)
     dCdW1  = np.dot( delta2 , a1.T)
         
-    dCdb3 = delta4
-    dCdb2 = delta3        
-    dCdb1 = delta2         
+    dCdb3 = np.sum(delta4,axis=1,keepdims=True)
+    dCdb2 = np.sum(delta3,axis=1,keepdims=True)
+    dCdb1 = np.sum(delta2,axis=1,keepdims=True)
     
         
     # Returning the cost function derivatives wrt to weights 
@@ -127,9 +149,9 @@ def gradientDescentOptimizer(X,params, grads,eta=0.001,lmbda=0.001):
     GradW2 = (1/m)*(dCdW2 + lmbda*W2)
     GradW3 = (1/m)*(dCdW3 + lmbda*W3)
     # wrt biases    
-    Gradb1 = (1/m)*(dCdb1 + lmbda*bias1)
-    Gradb2 = (1/m)*(dCdb2 + lmbda*bias2)
-    Gradb3 = (1/m)*(dCdb3 + lmbda*bias3)
+    Gradb1 = (1/m)*(dCdb1)
+    Gradb2 = (1/m)*(dCdb2)
+    Gradb3 = (1/m)*(dCdb3)
         
         
     # Update weights and biases
@@ -178,3 +200,93 @@ def tanhGradient(z):
     return (1 - np.square(tan))
 
 
+def cost_nn(y, y_pred):
+    m    = len(y) 
+    cost = (1/m)*np.sum( y*y_pred - np.log(1 + np.exp(y_pred)) )
+    return cost
+
+
+
+def neural_net_batch( X, Y, hiddenLayerSize1=20,hiddenLayerSize2=20, epochs = 100, batch_size = 10,alpha = 0.0001, lmbda = 0.01, activation='sigmoid', intercept = 'False'):    
+    
+    m = X.shape[1]
+    
+    inputLayerSize  = X.shape[0]
+    outputLayerSize = 1
+    
+    W1,W2,W3,bias1,bias2,bias3 = initialize_params(inputLayerSize,hiddenLayerSize1,hiddenLayerSize2,outputLayerSize)
+
+    
+    for k in range(epochs):
+        for j in range(np.int(m/batch_size)-1):
+            
+            y_pred,z4,z3,z2,a3,a2,a1 = forwardProp(X[:,(j*batch_size):((j+1)*batch_size)],W1,W2,W3,bias1,bias2,bias3,activation)
+            
+            dCdW3, dCdW2, dCdW1, dCdb3, dCdb2, dCdb1 = costGrad(X[:,(j*batch_size):((j+1)*batch_size)],Y[:,(j*batch_size):((j+1)*batch_size)],W1,W2,W3,bias1,bias2,bias3,activation)
+
+            params = [W1, W2, W3, 
+                      bias1, bias2, bias3,
+                      ]
+
+            grads = [dCdW1, dCdW2, dCdW3,
+                     dCdb1, dCdb2, dCdb3, 
+                     ]
+
+            W1,W2,W3,bias1,bias2,bias3 = gradientDescentOptimizer(X[:,(j*batch_size):((j+1)*batch_size)], params, grads,eta=alpha,lmbda=lmbda)
+                  
+            
+            cost_SGD = cost_nn(Y[:,(j*batch_size):((j+1)*batch_size)], y_pred)
+            
+            if j % 1000 == 0:
+                print( cost_SGD)
+    
+    return cost_SGD, W1, W2, W3, bias1, bias2, bias3
+
+
+
+
+
+#=========================model assessment=============================    
+
+
+def bootstrap_resampling_neural_net_classifier(y_train, y_test, x_train, x_test, model_complx,hidden_layers = (15,15), activation='relu', n_boostraps = 500):
+    
+    # Bootstrap algorithm for model assessment (not fully correct bootstrap, since test samples could be drawn from the samples which are within training set)
+    
+    mc = len(model_complx)
+    
+    error     = np.zeros([mc])
+    error_t   = np.zeros([mc])
+    
+    boot_er   = np.zeros([n_boostraps])
+    boot_er_t = np.zeros([n_boostraps])
+    
+    for j in range(mc):   
+        
+        
+        MLP_class = MLPClassifier(activation=activation,solver='sgd', alpha=model_complx[j], hidden_layer_sizes=hidden_layers, shuffle=True)
+        
+        for i in range(n_boostraps):
+            x_, y_   = resample(x_train, y_train)
+            x_t, y_t = resample(x_test, y_test)
+            
+            # Predict training and test data for each bootstrap
+            MLP_class.fit(x_,y_)
+           
+            y_pred   = MLP_class.predict(x_train).reshape(y_train.shape[0],y_train.shape[1])
+            y_pred_t = MLP_class.predict(x_test).reshape(y_test.shape[0],y_test.shape[1])
+       
+            boot_er[i]   = MLP_class.score(x_,y_pred)
+            boot_er_t[i] = MLP_class.score(x_t,y_pred_t)
+    
+           
+            # Compute the error, variance and bias squared at eah point in the model    
+        error[j]   = np.mean(boot_er)  
+        error_t[j] = np.mean(boot_er_t)
+        
+        
+        print( 'Next regularization parameter' )        
+    
+    return error, error_t
+
+ 
