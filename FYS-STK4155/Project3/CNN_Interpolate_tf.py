@@ -43,11 +43,11 @@ def create_CNN_int(X, shape,ratio,samp_hr,samp_lr):
         std = 0.1
         # Define filter shapes for the conv net
         filter_shape1 = [9, 9, 1, 64]
-        filter_shape2 = [5, 5, 64, ratio]
+        filter_shape2 = [3, 3, 64, ratio]
         filter_shape3 = [3, 3, 1, ratio]
         filter_shape4 = [7, 7, 1, 128]
         filter_shape5 = [3, 3, 128, 64]
-        filter_shape6 = [3, 3, 64, 1]
+        filter_shape6 = [5, 5, 64, 1]
                
         # Define weights and biases for the model. Fixed filter shapes
         weight1 = weight_variables(filter_shape1,std,name='w1')
