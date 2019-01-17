@@ -8,7 +8,7 @@ Created on Mon Jan 14 15:38:03 2019
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from Functions import nn_model
+from Functions import nn_model, Function_fitting
 from sklearn.preprocessing import normalize
 
 
@@ -26,40 +26,6 @@ ax.grid()
 plt.show()
 
 
-
-# ================================ Function fitting examples ============================
-
-
-
-# ============================ Sigmoid function =========================================
-
-
-
-
-
-
-
-def Function_fitting(X, Y, num_nodes=100,num_epoch = 10000, std=0.01, activation = 'Relu'):
-    with tf.Session() as sess:
-    
-        x = tf.placeholder(dtype=tf.float32,shape=(X.shape[1],len(X)))
-        y = tf.placeholder(dtype=tf.float32,shape=(1,len(X)))
-    
-        pred, w1, w2, b1, b2, a2 = nn_model(x, X.shape[1] , num_nodes=num_nodes,std=std, activation = activation)
-    
-        loss  = tf.reduce_mean(tf.square(y - pred))
-    
-        training = tf.train.AdamOptimizer(0.001).minimize(loss)
-    
-        tf.global_variables_initializer().run()
-
-        for epoch in range(num_epoch):
-        
-            train = sess.run([training], feed_dict = {x: X.T, y: Y.T})
-    
-        out_train, w1, w2, b1, b2, a2 = np.squeeze(sess.run([pred, w1, w2, b1, b2, a2], feed_dict = {x: X.T}))
-
-    return out_train, w1, w2, b1, b2, a2
 
 
 #########################################################################################################################################
