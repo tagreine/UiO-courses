@@ -38,3 +38,37 @@ def leakyRelu(z,eta):
     # Rectified linear unit
     lrelu = np.maximum(eta*z,z)
     return lrelu
+
+def nn_model(X, num_features=1, num_nodes=3, std=0.1, activation='sigmoid'):
+   tf.random.set_random_seed(1)
+   w1 = tf.Variable(tf.truncated_normal(shape=(num_nodes,num_features), stddev=std))
+   b1 = tf.Variable(tf.zeros(1,1)) 
+   
+   w2 = tf.Variable(tf.random_normal(shape=(1,num_nodes), stddev=std))
+   b2 = tf.Variable(tf.zeros(1,1))
+
+   a1  = X
+   
+   if activation == 'sigmoid':
+       a2  = tf.sigmoid(tf.add(tf.matmul(w1,a1),b1))   
+   if activation == 'tanh':
+       a2  = tf.math.tanh(tf.add(tf.matmul(w1,a1),b1))
+   if activation == 'Relu':
+       a2  = tf.nn.relu(tf.add(tf.matmul(w1,a1),b1))
+   if activation == 'leakyRelu':
+       a2  = tf.nn.leaky_relu(tf.add(tf.matmul(w1,a1),b1))   
+    
+    
+   out = tf.add(tf.matmul(w2,a2),b2)
+   
+   return out, w1, w2, b1, b2, a2
+
+
+def Fourier_basis(X,basis=2):
+    
+    fb = np.zeros((len(X),basis))
+
+    for i in range(basis):
+        fb[:,i] = np.sqrt(2)*np.sin(2*math.pi*(i+1)*X)
+    
+    return fb   
