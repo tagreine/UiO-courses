@@ -63,6 +63,28 @@ def nn_model(X, num_features=1, num_nodes=3, std=0.1, activation='sigmoid'):
    
    return out, w1, w2, b1, b2, a2
 
+def Function_fitting(X, Y, num_nodes=100,num_epoch = 10000, std=0.01, activation = 'Relu'):
+    with tf.Session() as sess:
+    
+        x = tf.placeholder(dtype=tf.float32,shape=(X.shape[1],len(X)))
+        y = tf.placeholder(dtype=tf.float32,shape=(1,len(X)))
+    
+        pred, w1, w2, b1, b2, a2 = nn_model(x, X.shape[1] , num_nodes=num_nodes,std=std, activation = activation)
+    
+        loss  = tf.reduce_mean(tf.square(y - pred))
+    
+        training = tf.train.AdamOptimizer(0.001).minimize(loss)
+    
+        tf.global_variables_initializer().run()
+
+        for epoch in range(num_epoch):
+        
+            train = sess.run([training], feed_dict = {x: X.T, y: Y.T})
+    
+        out_train, w1, w2, b1, b2, a2 = np.squeeze(sess.run([pred, w1, w2, b1, b2, a2], feed_dict = {x: X.T}))
+
+    return out_train, w1, w2, b1, b2, a2
+
 
 def Fourier_basis(X,basis=2):
     
