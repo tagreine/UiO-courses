@@ -144,4 +144,31 @@ def LU_decomp_inverse(A,d):
     v = np.linalg.solve(U,w)
     
     return v
+  
+ def Jacobi_it(A,x,d,eps=10**-5,it_test=100,stop=1000):
+    
+    b,c = A.shape
+    
+    err = np.sum(np.abs(A.dot(x)-d))
+    
+    # Try to vectorize to save computation time
+    k = 0
+    while err>eps:
+        
+        for i in range(b):
+            B = 0
+            for j in range(c):
+                if i!=j:
+                    B += A[i,j]*x[j]   
+            
+            x[i] = (d[i] - B)/A[i,i]
+            
+        # Test error
+        if np.mod(k,it_test)==0:
+            err = np.sum(np.abs(A.dot(x)-d))
+            print(err)
+        # Break if to many iterations
+        if k>stop:
+            break
+    return x
 
